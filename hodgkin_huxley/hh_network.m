@@ -1,7 +1,9 @@
 function hh_network(options)
     arguments 
         options.A double = [0 0.2 -0.2; -0.2 0 0.3; -0.2 0.1 0] % Connection matrix
-        options.I_ext function_handle = @(t, i) (i == 1) * (10 * (t > 5 & t < 30)); % External current
+        options.I_ext function_handle = @(t, i) ... ; % External current
+            (i == 3) * (10 * (t > 5 & t < 60)) + ... 
+            (i == 1) * (10 * (t > 40 & t < 60));
     end
     A = options.A;
     N = size(A, 1);    % Number of neurons
@@ -21,13 +23,17 @@ function hh_network(options)
 
     figure;
     for i = 1:N
-        subplot(N, 1, i);
+        subplot(N * 2, 1, i * 2 - 1);
         plot(t, y(:, i), 'LineWidth', 1.5);
-        xlabel('Time (ms)');
-        ylabel(['V_{neuron', num2str(i), '} (mV)']);
+        ylabel(['$V_{', num2str(i), '}$ (mV)'], 'Interpreter','latex');
         title(['Neuron ', num2str(i)]);
         grid on;
+        subplot(N * 2, 1, i * 2);
+        plot(t, arrayfun(@(tt) I_ext(tt, i), t), 'r', 'LineWidth',1.5);
+        ylabel('Current ($\frac{\mu A}{cm^2}$)', 'Interpreter','latex');
+        title(['External Current ', num2str(i)]);
     end
+    xlabel('Time (ms)');
 end
 
 function dydt = hh_network_odes(t, y, N, A, I_ext_func)
