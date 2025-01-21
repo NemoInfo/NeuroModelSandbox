@@ -26,18 +26,22 @@ function hh(options)
     [t, y] = ode45(@(t, y) hh_equations(t, y, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L, I_ext), tspan, y0);
 
     % Plot the membrane potential
-    figure;
     tiledlayout(2,1)
-    nexttile
-    plot(t, y(:, 1), 'b', 'LineWidth', 1.5);
-    ylabel('Membrane Potential (mV)');
-    title('Hodgkin-Huxley Model');
+    ax = nexttile;
+    plot(t, y(:, 1), 'b', LineWidth=2);
+    ylabel('u(t) (mV)', FontSize=20);
+    ti = title('a)', FontSize=20, HorizontalAlignment='left');
+    ti.Position(1) = ax.XLim(1) - 5;
+    ti.Position(2) = ti.Position(2) + 10;
     grid on;
-    nexttile
+
+    ax = nexttile;
     plot(t, arrayfun(I_ext, t), 'r', 'LineWidth',1.5);
-    xlabel('Time (ms)');
-    ylabel('Current (uA/cm^2)');
-    title('External current');
+    xlabel('t (ms)', FontSize=20);
+    ylabel('I(t) (nA)', FontSize=20);
+    ti = title('b)', FontSize=20, HorizontalAlignment='left');
+    ti.Position(1) = ax.XLim(1) - 5;
+    ti.Position(2) = ti.Position(2) + 1;
     grid on;
 end
 

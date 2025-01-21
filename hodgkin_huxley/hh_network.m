@@ -21,19 +21,18 @@ function hh_network(options)
 
     [t, y] = ode45(@(t, y) hh_network_odes(t, y, N, A, I_ext), tspan, y0);
 
-    figure;
     for i = 1:N
         subplot(N * 2, 1, i * 2 - 1);
         plot(t, y(:, i), 'LineWidth', 1.5);
-        ylabel(['$V_{', num2str(i), '}$ (mV)'], 'Interpreter','latex');
-        title(['Neuron ', num2str(i)]);
+        ylabel(['$u$ (mV)'], 'Interpreter','latex', FontSize=14);
+        title(['$\textbf{U}_{', num2str(i), '}$'], 'Interpreter','latex', FontSize=20);
         grid on;
         subplot(N * 2, 1, i * 2);
         plot(t, arrayfun(@(tt) I_ext(tt, i), t), 'r', 'LineWidth',1.5);
-        ylabel('Current ($\frac{\mu A}{cm^2}$)', 'Interpreter','latex');
-        title(['External Current ', num2str(i)]);
+        ylabel('I ($nA$)', 'Interpreter','latex', FontSize=14);
+        title(['$I_{ext}^{', num2str(i),'}$'], 'Interpreter','latex', FontSize=20);
     end
-    xlabel('Time (ms)');
+    xlabel('t (ms)', FontSize=14);
 end
 
 function dydt = hh_network_odes(t, y, N, A, I_ext_func)
