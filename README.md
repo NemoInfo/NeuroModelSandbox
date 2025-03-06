@@ -20,12 +20,12 @@ The plan is to use them as a framework to play around with different plasticity 
 
 <table>
   <tr>
-    <td><img src="./rubin_terman/figs/gpe_Iapp_170.svg" alt="pulse" width="500"/></td>
-    <td><img src="./rubin_terman/figs/gpe_Iapp_sweep.svg" alt="pulse" width="500"/></td>
+    <td><img src="./rubin_terman/figs/gpe_Iapp_170.svg" alt="pulse" width="620"/></td>
+    <td><img src="./rubin_terman/figs/gpe_Iapp_sweep.svg" alt="pulse" width="380"/></td>
   </tr>
   <tr>
     <td colspan="2" align="center"><figcaption>
-      Gpe neuron, with varying $I_app$
+      GPe neuron, with varying Iapp current
     </figcaption></td>
   </tr>
 </table>
