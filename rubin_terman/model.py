@@ -130,7 +130,7 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   n_gpe[0] = x_inf(v_gpe[0], tht_n_gpe, sig_n_gpe)
   h_gpe[0] = x_inf(v_gpe[0], tht_h_gpe, sig_h_gpe)
   r_gpe[0] = x_inf(v_gpe[0], tht_r_gpe, sig_r_gpe)
-  Ca_gpe[0] = 0.05
+  Ca_gpe[0] = 0.0
 
   # Create data arrays
   I_L_stn = np.zeros((T, N_stn))
