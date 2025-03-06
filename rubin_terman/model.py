@@ -3,14 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def rubin_terman():
-  N_gpe, N_stn = 10, 1
-  dt = 0.01  #ms
-  T = int(5e3 / dt)  #ms
+def rubin_terman(N_gpe, N_stn, I_ext=lambda t, n: 0, dt=0.01, T=5):
+  T = int(T * 1e3 / dt)  #ms
 
   v_gpe = np.zeros((T, N_gpe))
-
   v_stn = np.zeros((T, N_stn))
+
   n_stn = np.zeros((T, N_stn))
   h_stn = np.zeros((T, N_stn))
   r_stn = np.zeros((T, N_stn))
@@ -77,9 +75,13 @@ def rubin_terman():
   r_stn[0] = x_inf(v_stn[0], tht_r_stn, sig_r_stn)
   Ca_stn[0] = 0.05
 
-  I_Ts = np.zeros(T)
-  I_Cas = np.zeros(T)
-  I_AHPs = np.zeros(T)
+  I_L = np.zeros((T, N_stn))
+  I_K = np.zeros((T, N_stn))
+  I_Na = np.zeros((T, N_stn))
+  I_T = np.zeros((T, N_stn))
+  I_Ca = np.zeros((T, N_stn))
+  I_AHP = np.zeros((T, N_stn))
+  I_ext = np.fromfunction(np.vectorize(I_ext), (T, N_stn))
 
   for t in tqdm(range(T - 1), leave=False):
     # Update STN neurons
@@ -100,46 +102,29 @@ def rubin_terman():
       h_stn[t + 1, i] = h + dt * phi_h_stn * (h_inf - h) / tau_h
       r_stn[t + 1, i] = r + dt * phi_r_stn * (r_inf - r) / tau_r
 
-      I_L = g_L_stn * (v - v_L_stn)
-      I_K = g_K_stn * n**4 * (v - v_K_stn)
-      I_Na = g_Na_stn * m_inf**3 * h * (v - v_Na_stn)
-      I_T = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
-      I_Ca = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
+      I_L[t, i] = g_L_stn * (v - v_L_stn)
+      I_K[t, i] = g_K_stn * n**4 * (v - v_K_stn)
+      I_Na[t, i] = g_Na_stn * m_inf**3 * h * (v - v_Na_stn)
+      I_T[t, i] = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
+      I_Ca[t, i] = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
 
-      Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca - I_T - k_Ca_stn * Ca)
-      I_AHP = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
+      Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca[t, i] - I_T[t, i] - k_Ca_stn * Ca)
+      I_AHP[t, i] = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
 
-      I_Ts[t + 1] = I_T
-      I_Cas[t + 1] = I_Ca
-      I_AHPs[t + 1] = I_AHP
+      v_stn[t + 1, i] = v + dt * (-I_L[t, i] - I_K[t, i] - I_Na[t, i] - \
+                                  I_T[t, i] - I_Ca[t, i] - I_AHP[t, i] - I_ext[t, i])
 
-      v_stn[t + 1, i] = v + dt * (-I_L - I_K - I_Na - I_T - I_Ca - I_AHP)
-
-  I_Ts[0] = I_Ts[1]
-  I_Cas[0] = I_Cas[1]
-  I_AHPs[0] = I_AHPs[1]
-  # plt.plot(v_stn[:int(1e3 // dt), 0])
-  fig, axs = plt.subplots(5, 1, sharex=True)
-  axs[-5].plot(I_Ts, 'k')
-  axs[-5].set_ylabel(r"$I_{T}\ (\frac{pA}{\mu m^2})$", fontsize=18, rotation=0, labelpad=40)
-  axs[-4].plot(I_Cas, 'k')
-  axs[-4].set_ylabel(r"$I_{Ca}\ (\frac{pA}{\mu m^2})$", fontsize=18, rotation=0, labelpad=45)
-  axs[-3].plot(I_AHPs, 'k')
-  axs[-3].set_ylabel(r"$I_{AHP}\ (\frac{pA}{\mu m^2})$", fontsize=18, rotation=0, labelpad=50)
-  axs[-2].plot(Ca_stn[:, 0], 'k')
-  axs[-2].set_ylabel(r"$[Ca]\ (\frac{M}{L})$", fontsize=18, rotation=0, labelpad=45)
-  axs[-1].plot(v_stn[:, 0], 'k')
-  axs[-1].set_ylabel(r"$V\ (mV)$", fontsize=18, rotation=0, labelpad=40)
-
-  axs[-1].xaxis.set_major_formatter(lambda x, _: f"{x*dt:.0f}")
-  axs[-1].set_xlabel("Time (ms)", fontsize=15)
-
-  for ax in axs:
-    ax.grid()
-    ax = plt.gca()
-
-  fig.suptitle("Single STN Cell Voltage and Ca, $I_{ext} = 0$", fontsize=20)
-  plt.show()
+  return {
+      "I_L": I_L,
+      "I_K": I_K,
+      "I_Na": I_Na,
+      "I_T": I_T,
+      "I_Ca": I_Ca,
+      "I_AHP": I_AHP,
+      "I_ext": I_ext,
+      "Ca_stn": Ca_stn,
+      "v_stn": v_stn,
+  }
 
 
 def x_inf(v, tht_x, sig_x):
@@ -151,4 +136,4 @@ def tau_x(v, tau_x_0, tau_x_1, tht_x_T, sig_x_T):
 
 
 if __name__ == "__main__":
-  rubin_terman()
+  rubin_terman(1, 1)

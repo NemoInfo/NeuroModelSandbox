@@ -4,6 +4,21 @@ The plan is to use them as a framework to play around with different plasticity 
 
 ---
 
+# Rubin-Terman STN neuron
+<table>
+  <tr>
+    <td><img src="./rubin-terman/stn_rebound_1.svg" alt="pulse" width="500"/></td>
+    <td><img src="./rubin-terman/stn_rebound_2.svg" alt="pulse" width="500"/></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><figcaption>
+      STN neuron, hyperpolarising Ca-driven rebound bursts
+    </figcaption></td>
+  </tr>
+</table>
+
+---
+
 # Stimulus orientation selective firing-rate-based ring network
 <table>
   <tr>
