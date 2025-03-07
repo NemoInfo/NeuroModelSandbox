@@ -217,9 +217,10 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       r_stn[t + 1, i] = r + dt * phi_r_stn * (r_inf - r) / tau_r
       Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca_stn[t, i] - I_T_stn[t, i] - k_Ca_stn * Ca)
 
-      for j, v_gj, s_j in np.column_stack((np.arange(N_gpe), v_gpe[t], s_G_S[t, :, i]))[c_G_S[:, i]]:
-        H_inf = x_inf(v_gj - tht_g_stn, tht_g_H_stn, sig_g_H_stn)
-        s_G_S[t + 1, int(j), i] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
+      # STN -> GPe
+      H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
+      s_j = s_S_G[t, i][c_S_G[i]]
+      s_S_G[t + 1, i][c_S_G[i]] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
 
     for i, (v, n, h, r, Ca) in enumerate(zip(v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t])):
       n_inf = x_inf(v, tht_n_gpe, sig_n_gpe)
@@ -248,13 +249,15 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       r_gpe[t + 1, i] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
       Ca_gpe[t + 1, i] = Ca + dt * eps_gpe * (-I_Ca_gpe[t, i] - I_T_gpe[t, i] - k_Ca_gpe * Ca)
 
-      for j, v_sj, s_j in np.column_stack((np.arange(N_stn), v_stn[t], s_S_G[t, :, i]))[c_S_G[:, i]]:
-        H_inf = x_inf(v_sj - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
-        s_S_G[t + 1, int(j), i] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+      # GPe -> STN
+      H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)
+      s_j = s_G_S[t, i][c_G_S[i]]
+      s_G_S[t + 1, i][c_G_S[i]] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
 
-      for j, v_gj, s_j in np.column_stack((np.arange(N_gpe), v_gpe[t], s_G_G[t, :, i]))[c_G_G[:, i]]:
-        H_inf = x_inf(v_gj - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
-        s_G_G[t + 1, int(j), i] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+      # GPe -> GPe
+      H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
+      s_j = s_G_G[t, i][c_G_G[i]]
+      s_G_G[t + 1, i][c_G_G[i]] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
 
   return {
       "I_L_stn": I_L_stn,
