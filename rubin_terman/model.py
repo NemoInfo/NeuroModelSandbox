@@ -3,7 +3,8 @@ import numpy as np
 
 
 def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
-    I_ext_gpe=lambda t, n: 0, I_app_gpe=lambda t, n: 0 , dt=0.01, T=5):
+    I_ext_gpe=lambda t, n: 0, I_app_gpe=lambda t, n: 0 , dt=0.01, T=5, \
+    c_G_S=None, c_G_G=None, c_S_G=None):
   T = int(T * 1e3 / dt)  #ms
 
   v_gpe = np.zeros((T, N_gpe))
@@ -30,6 +31,7 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   v_K_stn = -80.  #  mV
   v_Na_stn = 55.  #  mV
   v_Ca_stn = 140.  # mV
+  v_G_S = -85.  # mV
 
   tau_h_1_stn = 500.  # ms
   tau_n_1_stn = 100.  # ms
@@ -58,6 +60,10 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   tht_n_T_stn = -80.
   tht_r_T_stn = 68.
 
+  tht_g_H_stn = -39.
+  tht_g_stn = 30.
+  alpha_stn = 5.  # ms^-1
+
   sig_m_stn = 15.
   sig_h_stn = -3.1
   sig_n_stn = 8.
@@ -69,6 +75,8 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   sig_h_T_stn = -3.
   sig_n_T_stn = -26.
   sig_r_T_stn = -2.2
+  sig_g_H_stn = 8.
+  beta_stn = 1.  # ms^-1
 
   b_const = 1 / (1 + np.exp(-tht_b_stn / sig_b_stn))
 
@@ -84,6 +92,8 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   v_K_gpe = -80.  #  mV
   v_Na_gpe = 55.  #  mV
   v_Ca_gpe = 120.  # mV
+  v_G_G = -100.  #   mV
+  v_S_G = 0.  #      mV
 
   tau_h_1_gpe = 0.27  # ms
   tau_n_1_gpe = 0.27  # ms
@@ -108,6 +118,9 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
 
   tht_h_T_gpe = -40.
   tht_n_T_gpe = -40.
+  tht_g_H_gpe = -57.
+  tht_g_gpe = 20.
+  alpha_gpe = 2.0  # ms^-1
 
   sig_m_gpe = 10.
   sig_h_gpe = -12.
@@ -118,16 +131,25 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
 
   sig_h_T_gpe = -12.
   sig_n_T_gpe = -12.
+  sig_g_H_gpe = 2.
+  beta_gpe = .08  # ms^-1
+
+  # Synaptic Parameters
+  g_G_S = 2.5  #   nS/um^2
+  g_S_G = 0.03  #  nS/um^2
+  g_G_G = 0.06  #  nS/um^2
 
   # Initilase Variables
-  v_stn[0] = -60.  # mV
+  v_stn[0] = -65.  # mV
   n_stn[0] = x_inf(v_stn[0], tht_n_stn, sig_n_stn)
-  h_stn[0] = x_inf(v_stn[0], tht_h_stn, sig_h_stn)
+  #h_stn[0] = np.linspace(0, 0.8, N_stn)
+  h_stn[0] = np.random.uniform(low=0, high=x_inf(v_stn[0, 0], tht_h_stn, sig_h_stn), size=N_stn)
   r_stn[0] = x_inf(v_stn[0], tht_r_stn, sig_r_stn)
   Ca_stn[0] = 0.05
 
-  v_gpe[0] = -60.  # mV
+  v_gpe[0] = -65.  # mV
   n_gpe[0] = x_inf(v_gpe[0], tht_n_gpe, sig_n_gpe)
+  # h_gpe[0] = np.linspace(0, 0.8, N_gpe)
   h_gpe[0] = x_inf(v_gpe[0], tht_h_gpe, sig_h_gpe)
   r_gpe[0] = x_inf(v_gpe[0], tht_r_gpe, sig_r_gpe)
   Ca_gpe[0] = 0.0
@@ -139,6 +161,8 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   I_T_stn = np.zeros((T, N_stn))
   I_Ca_stn = np.zeros((T, N_stn))
   I_AHP_stn = np.zeros((T, N_stn))
+  I_G_S = np.zeros((T, N_stn))
+
   if N_stn:
     I_ext_stn = np.fromfunction(np.vectorize(I_ext_stn), (T, N_stn))
 
@@ -148,9 +172,20 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   I_T_gpe = np.zeros((T, N_gpe))
   I_Ca_gpe = np.zeros((T, N_gpe))
   I_AHP_gpe = np.zeros((T, N_gpe))
+  I_S_G = np.zeros((T, N_gpe))
+  I_G_G = np.zeros((T, N_gpe))
+
   if N_gpe:
     I_app_gpe = np.fromfunction(np.vectorize(I_app_gpe), (T, N_gpe))
     I_ext_gpe = np.fromfunction(np.vectorize(I_ext_gpe), (T, N_gpe))
+
+  s_G_S = np.zeros((T, N_gpe, N_stn))
+  s_S_G = np.zeros((T, N_stn, N_gpe))
+  s_G_G = np.zeros((T, N_gpe, N_gpe))
+
+  if c_G_S is None: c_G_S = np.zeros((N_gpe, N_stn), dtype=np.bool)
+  if c_S_G is None: c_S_G = np.zeros((N_stn, N_gpe), dtype=np.bool)
+  if c_G_G is None: c_G_G = np.zeros((N_gpe, N_gpe), dtype=np.bool)
 
   for t in tqdm(range(T - 1), leave=False):
     # Update STN neurons
@@ -167,21 +202,24 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       tau_h = tau_x(v, tau_h_0_stn, tau_h_1_stn, tht_h_T_stn, sig_h_T_stn)
       tau_r = tau_x(v, tau_r_0_stn, tau_r_1_stn, tht_r_T_stn, sig_r_T_stn)
 
-      n_stn[t + 1, i] = n + dt * phi_n_stn * (n_inf - n) / tau_n
-      h_stn[t + 1, i] = h + dt * phi_h_stn * (h_inf - h) / tau_h
-      r_stn[t + 1, i] = r + dt * phi_r_stn * (r_inf - r) / tau_r
-
       I_L_stn[t, i] = g_L_stn * (v - v_L_stn)
       I_K_stn[t, i] = g_K_stn * n**4 * (v - v_K_stn)
       I_Na_stn[t, i] = g_Na_stn * m_inf**3 * h * (v - v_Na_stn)
       I_T_stn[t, i] = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
       I_Ca_stn[t, i] = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
-
-      Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca_stn[t, i] - I_T_stn[t, i] - k_Ca_stn * Ca)
       I_AHP_stn[t, i] = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
+      I_G_S[t, i] = g_G_S * (v - v_G_S) * s_G_S[t, :, i].sum()
 
-      v_stn[t + 1, i] = v + dt * (-I_L_stn[t, i] - I_K_stn[t, i] - I_Na_stn[t, i] - \
-                                  I_T_stn[t, i] - I_Ca_stn[t, i] - I_AHP_stn[t, i] - I_ext_stn[t, i])
+      v_stn[t + 1, i] = v + dt * (-I_L_stn[t, i] - I_K_stn[t, i] - I_Na_stn[t, i] - I_T_stn[t, i] - I_Ca_stn[t, i] -
+                                  I_AHP_stn[t, i] - I_G_S[t, i] - I_ext_stn[t, i])
+      n_stn[t + 1, i] = n + dt * phi_n_stn * (n_inf - n) / tau_n
+      h_stn[t + 1, i] = h + dt * phi_h_stn * (h_inf - h) / tau_h
+      r_stn[t + 1, i] = r + dt * phi_r_stn * (r_inf - r) / tau_r
+      Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca_stn[t, i] - I_T_stn[t, i] - k_Ca_stn * Ca)
+
+      for j, v_gj, s_j in np.column_stack((np.arange(N_gpe), v_gpe[t], s_G_S[t, :, i]))[c_G_S[:, i]]:
+        H_inf = x_inf(v_gj - tht_g_stn, tht_g_H_stn, sig_g_H_stn)
+        s_G_S[t + 1, int(j), i] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
 
     for i, (v, n, h, r, Ca) in enumerate(zip(v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t])):
       n_inf = x_inf(v, tht_n_gpe, sig_n_gpe)
@@ -194,21 +232,29 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       tau_n = tau_x(v, tau_n_0_gpe, tau_n_1_gpe, tht_n_T_gpe, sig_n_T_gpe)
       tau_h = tau_x(v, tau_h_0_gpe, tau_h_1_gpe, tht_h_T_gpe, sig_h_T_gpe)
 
-      n_gpe[t + 1, i] = n + dt * phi_n_gpe * (n_inf - n) / tau_n
-      h_gpe[t + 1, i] = h + dt * phi_h_gpe * (h_inf - h) / tau_h
-      r_gpe[t + 1, i] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
-
       I_L_gpe[t, i] = g_L_gpe * (v - v_L_gpe)
       I_K_gpe[t, i] = g_K_gpe * n**4 * (v - v_K_gpe)
       I_Na_gpe[t, i] = g_Na_gpe * m_inf**3 * h * (v - v_Na_gpe)
       I_T_gpe[t, i] = g_T_gpe * a_inf**3 * r * (v - v_Ca_gpe)
       I_Ca_gpe[t, i] = g_Ca_gpe * s_inf**2 * (v - v_Ca_gpe)
-
-      Ca_gpe[t + 1, i] = Ca + dt * eps_gpe * (-I_Ca_gpe[t, i] - I_T_gpe[t, i] - k_Ca_gpe * Ca)
       I_AHP_gpe[t, i] = g_AHP_gpe * (v - v_K_gpe) * Ca / (Ca + k_1_gpe)
+      I_S_G[t, i] = g_S_G * (v - v_S_G) * s_S_G[t, :, i].sum()
+      I_G_G[t, i] = g_G_G * (v - v_G_G) * s_G_G[t, :, i].sum()
 
-      v_gpe[t + 1, i] = v + dt * (-I_L_gpe[t, i] - I_K_gpe[t, i] - I_Na_gpe[t, i] - I_T_gpe[t, i] - \
-                                  I_Ca_gpe[t, i] - I_AHP_gpe[t, i] - I_ext_gpe[t, i] + I_app_gpe[t, i])
+      v_gpe[t + 1, i] = v + dt * (-I_L_gpe[t, i] - I_K_gpe[t, i] - I_Na_gpe[t, i] - I_T_gpe[t, i] - I_Ca_gpe[t, i] -
+                                  I_AHP_gpe[t, i] - I_ext_gpe[t, i] - I_G_G[t, i] - I_S_G[t, i] + I_app_gpe[t, i])
+      n_gpe[t + 1, i] = n + dt * phi_n_gpe * (n_inf - n) / tau_n
+      h_gpe[t + 1, i] = h + dt * phi_h_gpe * (h_inf - h) / tau_h
+      r_gpe[t + 1, i] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
+      Ca_gpe[t + 1, i] = Ca + dt * eps_gpe * (-I_Ca_gpe[t, i] - I_T_gpe[t, i] - k_Ca_gpe * Ca)
+
+      for j, v_sj, s_j in np.column_stack((np.arange(N_stn), v_stn[t], s_S_G[t, :, i]))[c_S_G[:, i]]:
+        H_inf = x_inf(v_sj - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
+        s_S_G[t + 1, int(j), i] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+
+      for j, v_gj, s_j in np.column_stack((np.arange(N_gpe), v_gpe[t], s_G_G[t, :, i]))[c_G_G[:, i]]:
+        H_inf = x_inf(v_gj - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
+        s_G_G[t + 1, int(j), i] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
 
   return {
       "I_L_stn": I_L_stn,
@@ -242,4 +288,22 @@ def tau_x(v, tau_x_0, tau_x_1, tht_x_T, sig_x_T):
 
 
 if __name__ == "__main__":
-  rubin_terman(1, 1)
+  np.random.seed(69)
+
+  N_gpe, N_stn = 3, 3
+  dt = 0.01
+  I_app = lambda t, n: -1.2
+
+  c_G_S = np.array([[0, 0, 0,], \
+                    [0, 0, 0,], \
+                    [0, 0, 0,]], dtype=np.bool)
+
+  c_S_G = np.array([[1, 1, 0,], \
+                    [0, 1, 1,], \
+                    [1, 0, 1,]], dtype=np.bool)
+
+  c_G_G = np.array([[0, 0, 0,], \
+                    [0, 0, 0,], \
+                    [0, 0, 0,]], dtype=np.bool)
+
+  _ = rubin_terman(N_gpe, N_stn, I_app_gpe=I_app, dt=dt, T=2, c_G_S=c_G_S, c_G_G=c_G_G, c_S_G=c_S_G)
