@@ -5,6 +5,7 @@ import numpy as np
 def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     I_ext_gpe=lambda t, n: 0, I_app_gpe=lambda t, n: 0 , dt=0.01, T=5, \
     c_G_S=None, c_G_G=None, c_S_G=None):
+
   T = int(T * 1e3 / dt)  #ms
 
   v_gpe = np.zeros((T, N_gpe))
@@ -179,85 +180,93 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     I_app_gpe = np.fromfunction(np.vectorize(I_app_gpe), (T, N_gpe))
     I_ext_gpe = np.fromfunction(np.vectorize(I_ext_gpe), (T, N_gpe))
 
-  s_G_S = np.zeros((T, N_gpe, N_stn))
-  s_S_G = np.zeros((T, N_stn, N_gpe))
-  s_G_G = np.zeros((T, N_gpe, N_gpe))
+  s_G_S = np.zeros((2, N_gpe, N_stn))
+  s_S_G = np.zeros((2, N_stn, N_gpe))
+  s_G_G = np.zeros((2, N_gpe, N_gpe))
 
   if c_G_S is None: c_G_S = np.zeros((N_gpe, N_stn), dtype=np.bool)
+  r_G_S, _ = np.nonzero(c_G_S)
   if c_S_G is None: c_S_G = np.zeros((N_stn, N_gpe), dtype=np.bool)
+  r_S_G, _ = np.nonzero(c_S_G)
   if c_G_G is None: c_G_G = np.zeros((N_gpe, N_gpe), dtype=np.bool)
+  r_G_G, _ = np.nonzero(c_G_G)
 
   for t in tqdm(range(T - 1), leave=False):
     # Update STN neurons
-    for i, (v, n, h, r, Ca) in enumerate(zip(v_stn[t], n_stn[t], h_stn[t], r_stn[t], Ca_stn[t])):
-      n_inf = x_inf(v, tht_n_stn, sig_n_stn)
-      m_inf = x_inf(v, tht_m_stn, sig_m_stn)
-      h_inf = x_inf(v, tht_h_stn, sig_h_stn)
-      a_inf = x_inf(v, tht_a_stn, sig_a_stn)
-      r_inf = x_inf(v, tht_r_stn, sig_r_stn)
-      s_inf = x_inf(v, tht_s_stn, sig_s_stn)
-      b_inf = 1 / (1 + np.exp((r - tht_b_stn) / sig_b_stn)) - b_const
+    v, n, h, r, Ca = v_stn[t], n_stn[t], h_stn[t], r_stn[t], Ca_stn[t]
+    n_inf = x_inf(v, tht_n_stn, sig_n_stn)
+    m_inf = x_inf(v, tht_m_stn, sig_m_stn)
+    h_inf = x_inf(v, tht_h_stn, sig_h_stn)
+    a_inf = x_inf(v, tht_a_stn, sig_a_stn)
+    r_inf = x_inf(v, tht_r_stn, sig_r_stn)
+    s_inf = x_inf(v, tht_s_stn, sig_s_stn)
+    b_inf = 1 / (1 + np.exp((r - tht_b_stn) / sig_b_stn)) - b_const
 
-      tau_n = tau_x(v, tau_n_0_stn, tau_n_1_stn, tht_n_T_stn, sig_n_T_stn)
-      tau_h = tau_x(v, tau_h_0_stn, tau_h_1_stn, tht_h_T_stn, sig_h_T_stn)
-      tau_r = tau_x(v, tau_r_0_stn, tau_r_1_stn, tht_r_T_stn, sig_r_T_stn)
+    tau_n = tau_x(v, tau_n_0_stn, tau_n_1_stn, tht_n_T_stn, sig_n_T_stn)
+    tau_h = tau_x(v, tau_h_0_stn, tau_h_1_stn, tht_h_T_stn, sig_h_T_stn)
+    tau_r = tau_x(v, tau_r_0_stn, tau_r_1_stn, tht_r_T_stn, sig_r_T_stn)
 
-      I_L_stn[t, i] = g_L_stn * (v - v_L_stn)
-      I_K_stn[t, i] = g_K_stn * n**4 * (v - v_K_stn)
-      I_Na_stn[t, i] = g_Na_stn * m_inf**3 * h * (v - v_Na_stn)
-      I_T_stn[t, i] = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
-      I_Ca_stn[t, i] = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
-      I_AHP_stn[t, i] = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
-      I_G_S[t, i] = g_G_S * (v - v_G_S) * s_G_S[t, :, i].sum()
+    I_L_stn[t] = g_L_stn * (v - v_L_stn)
+    I_K_stn[t] = g_K_stn * n**4 * (v - v_K_stn)
+    I_Na_stn[t] = g_Na_stn * m_inf**3 * h * (v - v_Na_stn)
+    I_T_stn[t] = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
+    I_Ca_stn[t] = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
+    I_AHP_stn[t] = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
+    I_G_S[t] = g_G_S * (v - v_G_S) * s_G_S[0].sum(axis=0)
 
-      v_stn[t + 1, i] = v + dt * (-I_L_stn[t, i] - I_K_stn[t, i] - I_Na_stn[t, i] - I_T_stn[t, i] - I_Ca_stn[t, i] -
-                                  I_AHP_stn[t, i] - I_G_S[t, i] - I_ext_stn[t, i])
-      n_stn[t + 1, i] = n + dt * phi_n_stn * (n_inf - n) / tau_n
-      h_stn[t + 1, i] = h + dt * phi_h_stn * (h_inf - h) / tau_h
-      r_stn[t + 1, i] = r + dt * phi_r_stn * (r_inf - r) / tau_r
-      Ca_stn[t + 1, i] = Ca + dt * eps_stn * (-I_Ca_stn[t, i] - I_T_stn[t, i] - k_Ca_stn * Ca)
+    v_stn[t + 1] = v + dt * (-I_L_stn[t] - I_K_stn[t] - I_Na_stn[t] - I_T_stn[t] - I_Ca_stn[t] - I_AHP_stn[t] -
+                             I_G_S[t] - I_ext_stn[t])
+    n_stn[t + 1] = n + dt * phi_n_stn * (n_inf - n) / tau_n
+    h_stn[t + 1] = h + dt * phi_h_stn * (h_inf - h) / tau_h
+    r_stn[t + 1] = r + dt * phi_r_stn * (r_inf - r) / tau_r
+    Ca_stn[t + 1] = Ca + dt * eps_stn * (-I_Ca_stn[t] - I_T_stn[t] - k_Ca_stn * Ca)
 
-      # STN -> GPe
-      H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
-      s_j = s_S_G[t, i][c_S_G[i]]
-      s_S_G[t + 1, i][c_S_G[i]] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+    # STN -> GPe
+    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_S_G]
+    s_j = s_S_G[0][c_S_G]
+    s_S_G[1][c_S_G] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
 
-    for i, (v, n, h, r, Ca) in enumerate(zip(v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t])):
-      n_inf = x_inf(v, tht_n_gpe, sig_n_gpe)
-      m_inf = x_inf(v, tht_m_gpe, sig_m_gpe)
-      h_inf = x_inf(v, tht_h_gpe, sig_h_gpe)
-      a_inf = x_inf(v, tht_a_gpe, sig_a_gpe)
-      r_inf = x_inf(v, tht_r_gpe, sig_r_gpe)
-      s_inf = x_inf(v, tht_s_gpe, sig_s_gpe)
+    # Update STN neurons
+    v, n, h, r, Ca = v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t]
+    n_inf = x_inf(v, tht_n_gpe, sig_n_gpe)
+    m_inf = x_inf(v, tht_m_gpe, sig_m_gpe)
+    h_inf = x_inf(v, tht_h_gpe, sig_h_gpe)
+    a_inf = x_inf(v, tht_a_gpe, sig_a_gpe)
+    r_inf = x_inf(v, tht_r_gpe, sig_r_gpe)
+    s_inf = x_inf(v, tht_s_gpe, sig_s_gpe)
 
-      tau_n = tau_x(v, tau_n_0_gpe, tau_n_1_gpe, tht_n_T_gpe, sig_n_T_gpe)
-      tau_h = tau_x(v, tau_h_0_gpe, tau_h_1_gpe, tht_h_T_gpe, sig_h_T_gpe)
+    tau_n = tau_x(v, tau_n_0_gpe, tau_n_1_gpe, tht_n_T_gpe, sig_n_T_gpe)
+    tau_h = tau_x(v, tau_h_0_gpe, tau_h_1_gpe, tht_h_T_gpe, sig_h_T_gpe)
 
-      I_L_gpe[t, i] = g_L_gpe * (v - v_L_gpe)
-      I_K_gpe[t, i] = g_K_gpe * n**4 * (v - v_K_gpe)
-      I_Na_gpe[t, i] = g_Na_gpe * m_inf**3 * h * (v - v_Na_gpe)
-      I_T_gpe[t, i] = g_T_gpe * a_inf**3 * r * (v - v_Ca_gpe)
-      I_Ca_gpe[t, i] = g_Ca_gpe * s_inf**2 * (v - v_Ca_gpe)
-      I_AHP_gpe[t, i] = g_AHP_gpe * (v - v_K_gpe) * Ca / (Ca + k_1_gpe)
-      I_S_G[t, i] = g_S_G * (v - v_S_G) * s_S_G[t, :, i].sum()
-      I_G_G[t, i] = g_G_G * (v - v_G_G) * s_G_G[t, :, i].sum()
+    I_L_gpe[t] = g_L_gpe * (v - v_L_gpe)
+    I_K_gpe[t] = g_K_gpe * n**4 * (v - v_K_gpe)
+    I_Na_gpe[t] = g_Na_gpe * m_inf**3 * h * (v - v_Na_gpe)
+    I_T_gpe[t] = g_T_gpe * a_inf**3 * r * (v - v_Ca_gpe)
+    I_Ca_gpe[t] = g_Ca_gpe * s_inf**2 * (v - v_Ca_gpe)
+    I_AHP_gpe[t] = g_AHP_gpe * (v - v_K_gpe) * Ca / (Ca + k_1_gpe)
+    I_S_G[t] = g_S_G * (v - v_S_G) * s_S_G[0].sum(axis=0)
+    I_G_G[t] = g_G_G * (v - v_G_G) * s_G_G[0].sum(axis=0)
 
-      v_gpe[t + 1, i] = v + dt * (-I_L_gpe[t, i] - I_K_gpe[t, i] - I_Na_gpe[t, i] - I_T_gpe[t, i] - I_Ca_gpe[t, i] -
-                                  I_AHP_gpe[t, i] - I_ext_gpe[t, i] - I_G_G[t, i] - I_S_G[t, i] + I_app_gpe[t, i])
-      n_gpe[t + 1, i] = n + dt * phi_n_gpe * (n_inf - n) / tau_n
-      h_gpe[t + 1, i] = h + dt * phi_h_gpe * (h_inf - h) / tau_h
-      r_gpe[t + 1, i] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
-      Ca_gpe[t + 1, i] = Ca + dt * eps_gpe * (-I_Ca_gpe[t, i] - I_T_gpe[t, i] - k_Ca_gpe * Ca)
+    v_gpe[t + 1] = v + dt * (-I_L_gpe[t] - I_K_gpe[t] - I_Na_gpe[t] - I_T_gpe[t] - I_Ca_gpe[t] - I_AHP_gpe[t] -
+                             I_ext_gpe[t] - I_G_G[t] - I_S_G[t] + I_app_gpe[t])
+    n_gpe[t + 1] = n + dt * phi_n_gpe * (n_inf - n) / tau_n
+    h_gpe[t + 1] = h + dt * phi_h_gpe * (h_inf - h) / tau_h
+    r_gpe[t + 1] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
+    Ca_gpe[t + 1] = Ca + dt * eps_gpe * (-I_Ca_gpe[t] - I_T_gpe[t] - k_Ca_gpe * Ca)
 
-      # GPe -> STN
-      H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)
-      s_j = s_G_S[t, i][c_G_S[i]]
-      s_G_S[t + 1, i][c_G_S[i]] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
+    # GPe -> STN
+    H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)[r_G_S]
+    s_j = s_G_S[0][c_G_S]
+    s_G_S[1][c_G_S] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
 
-      # GPe -> GPe
-      H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
-      s_j = s_G_G[t, i][c_G_G[i]]
-      s_G_G[t + 1, i][c_G_G[i]] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+    # GPe -> GPe
+    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_G_G]
+    s_j = s_G_G[0][c_G_G]
+    s_G_G[1][c_G_G] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+
+    s_S_G[0] = s_S_G[1]
+    s_G_S[0] = s_G_S[1]
+    s_G_G[0] = s_G_G[1]
 
   return {
       "I_L_stn": I_L_stn,
