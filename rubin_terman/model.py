@@ -137,8 +137,8 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
 
   # Synaptic Parameters
   g_G_S = 2.5  #   nS/um^2
-  g_S_G = 0.03  #  nS/um^2
-  g_G_G = 0.06  #  nS/um^2
+  g_S_G = 0.1  #  nS/um^2
+  g_G_G = 0.02  #  nS/um^2
 
   # Initilase Variables
   v_stn[0] = -65.  # mV
@@ -194,7 +194,7 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   for t in tqdm(range(T - 1), leave=False):
     # Update STN neurons
     v, n, h, r, Ca = v_stn[t], n_stn[t], h_stn[t], r_stn[t], Ca_stn[t]
-    n_inf = x_inf(v, tht_n_stn, sig_n_stn)
+    n_inf = x_inf(v, tht_n_stn, sig_n_stn) 
     m_inf = x_inf(v, tht_m_stn, sig_m_stn)
     h_inf = x_inf(v, tht_h_stn, sig_h_stn)
     a_inf = x_inf(v, tht_a_stn, sig_a_stn)
@@ -222,11 +222,11 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     Ca_stn[t + 1] = Ca + dt * eps_stn * (-I_Ca_stn[t] - I_T_stn[t] - k_Ca_stn * Ca)
 
     # STN -> GPe
-    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_S_G]
+    H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)[r_S_G]
     s_j = s_S_G[0][c_S_G]
-    s_S_G[1][c_S_G] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
+    s_S_G[1][c_S_G] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
 
-    # Update STN neurons
+    # Update GPe neurons
     v, n, h, r, Ca = v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t]
     n_inf = x_inf(v, tht_n_gpe, sig_n_gpe)
     m_inf = x_inf(v, tht_m_gpe, sig_m_gpe)
@@ -255,9 +255,9 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     Ca_gpe[t + 1] = Ca + dt * eps_gpe * (-I_Ca_gpe[t] - I_T_gpe[t] - k_Ca_gpe * Ca)
 
     # GPe -> STN
-    H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)[r_G_S]
+    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_G_S]
     s_j = s_G_S[0][c_G_S]
-    s_G_S[1][c_G_S] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
+    s_G_S[1][c_G_S] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
 
     # GPe -> GPe
     H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_G_G]
@@ -288,6 +288,9 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       "I_app_gpe": I_app_gpe,
       "Ca_gpe": Ca_gpe,
       "v_gpe": v_gpe,
+      "I_G_S": I_G_S,
+      "I_G_G": I_G_G,
+      "I_S_G": I_S_G,
   }
 
 
