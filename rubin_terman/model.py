@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import numpy as np
 
-
 def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     I_ext_gpe=lambda t, n: 0, I_app_gpe=lambda t, n: 0 , dt=0.01, T=5, \
     c_G_S=None, c_G_G=None, c_S_G=None):
@@ -136,9 +135,9 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   beta_gpe = .08  # ms^-1
 
   # Synaptic Parameters
-  g_G_S = 2.5  #   nS/um^2
-  g_S_G = 0.1  #  nS/um^2
-  g_G_G = 0.02  #  nS/um^2
+  g_G_S = 4.5  #   nS/um^2
+  g_S_G = 0.56  #  nS/um^2
+  g_G_G = 0.06  #  nS/um^2
 
   # Initilase Variables
   v_stn[0] = -65.  # mV
@@ -163,6 +162,22 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   I_Ca_stn = np.zeros((T, N_stn))
   I_AHP_stn = np.zeros((T, N_stn))
   I_G_S = np.zeros((T, N_stn))
+  s_stn = np.zeros((T, N_stn))
+
+  v_stn[0] = [-77., -77., -53.2, -53.2] * 2
+  h_stn[0] = [0.19, 0.19, 0.1, 0.1] * 2
+
+  n_stn[0, [0, 1, 4, 5]] = 0.15
+  n_stn[0, [2, 3, 6, 7]] = 0.45
+
+  r_stn[0, [0, 1, 4, 5]] = 0.23
+  r_stn[0, [2, 3, 6, 7]] = 0.6
+
+  Ca_stn[0, [0, 1, 4, 5]] = 0.06
+  Ca_stn[0, [2, 3, 6, 7]] = 0.12
+
+  s_stn[0, [0, 1, 4, 5]] = .0
+  s_stn[0, [2, 3, 6, 7]] = .44
 
   if N_stn:
     I_ext_stn = np.fromfunction(np.vectorize(I_ext_stn), (T, N_stn))
@@ -175,26 +190,45 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
   I_AHP_gpe = np.zeros((T, N_gpe))
   I_S_G = np.zeros((T, N_gpe))
   I_G_G = np.zeros((T, N_gpe))
+  s_gpe = np.zeros((T, N_gpe))
+
+  v_gpe[0, 0:2] = -95.
+  n_gpe[0, 0:2] = .04
+  h_gpe[0, 0:2] = .95
+  Ca_gpe[0, 0:2] = 0.06
+  r_gpe[0, 0:2] = .9
+  v_gpe[0, 2:4] = -77.
+  n_gpe[0, 2:4] = .78
+  h_gpe[0, 2:4] = .2
+  Ca_gpe[0, 2:4] = 0.035
+  r_gpe[0, 2:4] = 0.9
+  s_gpe[0, 0:2] = 0.09
+  s_gpe[0, 2:4] = .5
+  v_gpe[0, 4:6] = -95.
+  n_gpe[0, 4:6] = .04
+  h_gpe[0, 4:6] = .95
+  Ca_gpe[0, 4:6] = 0.06
+  r_gpe[0, 4:6] = .9
+  v_gpe[0, 6:8] = -77.
+  n_gpe[0, 6:8] = .78
+  h_gpe[0, 6:8] = .2
+  Ca_gpe[0, 6:8] = 0.035
+  r_gpe[0, 6:8] = 0.9
+  s_gpe[0, 4:6] = 0.09
+  s_gpe[0, 6:8] = .5
 
   if N_gpe:
     I_app_gpe = np.fromfunction(np.vectorize(I_app_gpe), (T, N_gpe))
     I_ext_gpe = np.fromfunction(np.vectorize(I_ext_gpe), (T, N_gpe))
 
-  s_G_S = np.zeros((2, N_gpe, N_stn))
-  s_S_G = np.zeros((2, N_stn, N_gpe))
-  s_G_G = np.zeros((2, N_gpe, N_gpe))
-
   if c_G_S is None: c_G_S = np.zeros((N_gpe, N_stn), dtype=np.bool)
-  r_G_S, _ = np.nonzero(c_G_S)
   if c_S_G is None: c_S_G = np.zeros((N_stn, N_gpe), dtype=np.bool)
-  r_S_G, _ = np.nonzero(c_S_G)
   if c_G_G is None: c_G_G = np.zeros((N_gpe, N_gpe), dtype=np.bool)
-  r_G_G, _ = np.nonzero(c_G_G)
 
   for t in tqdm(range(T - 1), leave=False):
     # Update STN neurons
     v, n, h, r, Ca = v_stn[t], n_stn[t], h_stn[t], r_stn[t], Ca_stn[t]
-    n_inf = x_inf(v, tht_n_stn, sig_n_stn) 
+    n_inf = x_inf(v, tht_n_stn, sig_n_stn)
     m_inf = x_inf(v, tht_m_stn, sig_m_stn)
     h_inf = x_inf(v, tht_h_stn, sig_h_stn)
     a_inf = x_inf(v, tht_a_stn, sig_a_stn)
@@ -212,19 +246,18 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     I_T_stn[t] = g_T_stn * a_inf**3 * b_inf**2 * (v - v_Ca_stn)
     I_Ca_stn[t] = g_Ca_stn * s_inf**2 * (v - v_Ca_stn)
     I_AHP_stn[t] = g_AHP_stn * (v - v_K_stn) * Ca / (Ca + k_1_stn)
-    I_G_S[t] = g_G_S * (v - v_G_S) * s_G_S[0].sum(axis=0)
+    I_G_S[t] = g_G_S * (v - v_G_S) * (c_G_S.T @ s_gpe[t])
 
     v_stn[t + 1] = v + dt * (-I_L_stn[t] - I_K_stn[t] - I_Na_stn[t] - I_T_stn[t] - I_Ca_stn[t] - I_AHP_stn[t] -
                              I_G_S[t] - I_ext_stn[t])
     n_stn[t + 1] = n + dt * phi_n_stn * (n_inf - n) / tau_n
     h_stn[t + 1] = h + dt * phi_h_stn * (h_inf - h) / tau_h
     r_stn[t + 1] = r + dt * phi_r_stn * (r_inf - r) / tau_r
-    Ca_stn[t + 1] = Ca + dt * eps_stn * (-I_Ca_stn[t] - I_T_stn[t] - k_Ca_stn * Ca)
+    Ca_stn[t + 1] = Ca + dt * eps_stn * ((-I_Ca_stn[t] - I_T_stn[t]) - k_Ca_stn * Ca)
 
-    # STN -> GPe
-    H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)[r_S_G]
-    s_j = s_S_G[0][c_S_G]
-    s_S_G[1][c_S_G] = s_j + dt * (alpha_stn * H_inf * (1 - s_j) - beta_stn * s_j)
+    # STN synapses
+    H_inf = x_inf(v - tht_g_stn, tht_g_H_stn, sig_g_H_stn)
+    s_stn[t + 1] = s_stn[t] + dt * (alpha_stn * H_inf * (1 - s_stn[t]) - beta_stn * s_stn[t])
 
     # Update GPe neurons
     v, n, h, r, Ca = v_gpe[t], n_gpe[t], h_gpe[t], r_gpe[t], Ca_gpe[t]
@@ -244,29 +277,19 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
     I_T_gpe[t] = g_T_gpe * a_inf**3 * r * (v - v_Ca_gpe)
     I_Ca_gpe[t] = g_Ca_gpe * s_inf**2 * (v - v_Ca_gpe)
     I_AHP_gpe[t] = g_AHP_gpe * (v - v_K_gpe) * Ca / (Ca + k_1_gpe)
-    I_S_G[t] = g_S_G * (v - v_S_G) * s_S_G[0].sum(axis=0)
-    I_G_G[t] = g_G_G * (v - v_G_G) * s_G_G[0].sum(axis=0)
+    I_G_G[t] = g_G_G * (v - v_G_G) * (c_G_G.T @ s_gpe[t])
+    I_S_G[t] = g_S_G * (v - v_S_G) * (c_S_G.T @ s_stn[t])
 
     v_gpe[t + 1] = v + dt * (-I_L_gpe[t] - I_K_gpe[t] - I_Na_gpe[t] - I_T_gpe[t] - I_Ca_gpe[t] - I_AHP_gpe[t] -
                              I_ext_gpe[t] - I_G_G[t] - I_S_G[t] + I_app_gpe[t])
     n_gpe[t + 1] = n + dt * phi_n_gpe * (n_inf - n) / tau_n
     h_gpe[t + 1] = h + dt * phi_h_gpe * (h_inf - h) / tau_h
     r_gpe[t + 1] = r + dt * phi_r_gpe * (r_inf - r) / tau_r_gpe
-    Ca_gpe[t + 1] = Ca + dt * eps_gpe * (-I_Ca_gpe[t] - I_T_gpe[t] - k_Ca_gpe * Ca)
+    Ca_gpe[t + 1] = Ca + dt * eps_gpe * ((-I_Ca_gpe[t] - I_T_gpe[t]) - k_Ca_gpe * Ca)
 
-    # GPe -> STN
-    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_G_S]
-    s_j = s_G_S[0][c_G_S]
-    s_G_S[1][c_G_S] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
-
-    # GPe -> GPe
-    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)[r_G_G]
-    s_j = s_G_G[0][c_G_G]
-    s_G_G[1][c_G_G] = s_j + dt * (alpha_gpe * H_inf * (1 - s_j) - beta_gpe * s_j)
-
-    s_S_G[0] = s_S_G[1]
-    s_G_S[0] = s_G_S[1]
-    s_G_G[0] = s_G_G[1]
+    # GPe -> X synapses
+    H_inf = x_inf(v - tht_g_gpe, tht_g_H_gpe, sig_g_H_gpe)
+    s_gpe[t + 1] = s_gpe[t] + dt * (alpha_gpe * H_inf * (1 - s_gpe[t]) - beta_gpe * s_gpe[t])
 
   return {
       "I_L_stn": I_L_stn,
@@ -291,6 +314,8 @@ def rubin_terman(N_gpe, N_stn, I_ext_stn=lambda t, n: 0, \
       "I_G_S": I_G_S,
       "I_G_G": I_G_G,
       "I_S_G": I_S_G,
+      "s_stn": s_stn,
+      "s_gpe": s_gpe,
   }
 
 
